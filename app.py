@@ -346,7 +346,7 @@ async def order_view(ack, body, client):
 			"type": "section",
 			"text": {
 				"type": "mrkdwn",
-				"text": ("If you want multiple items, put them on the same 
+				"text": ("If you want multiple items, put them on the same "
                         "line.\nFor example *Spicy Biscuit + Fruit Cup*.")
 			}
 		}
