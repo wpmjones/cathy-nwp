@@ -9,7 +9,6 @@ import time
 import creds
 
 import asyncio
-import gspread
 import json
 import os
 import re
@@ -33,10 +32,6 @@ app = AsyncApp(token=creds.bot_token,
                signing_secret=creds.signing_secret)
 client = WebClient(token=creds.bot_token)
 
-# Connect to Google Sheets
-gc = gspread.service_account(filename=creds.gspread)
-staff_spreadsheet = gc.open_by_key(creds.staff_id)
-
 # Constants
 CHANNEL_TESTING = "C095MDZUCHJ"
 
@@ -47,8 +42,7 @@ def contains_whitespace(s):
     return True in [c in s for c in string.whitespace]
 
 
-# All new hires start on Monday, so I use this function to get the next Monday for a start date.
-# This function is only used for adding someone to Trello since we use the start date on their cards.
+# Helper functions
 def get_next_monday():
     today = datetime.today()
     days_ahead = (7 - today.weekday()) % 7
