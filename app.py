@@ -144,6 +144,7 @@ async def handle_newuser_command(ack, body, client):
             }
         ]
     }
+    logger.info(modal_view)
 
     await client.views_open(trigger_id=body["trigger_id"], view=modal_view)            
 
