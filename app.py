@@ -78,6 +78,7 @@ async def cathy_help(ack, say):
 
 @app.command("/newuser")
 async def handle_newuser_command(ack, body, client):
+    logger.info("Starting New User function.")
     await ack()
 
     available_date = get_next_monday()
