@@ -9,13 +9,12 @@ import time
 import creds
 
 import asyncio, aiohttp
-import json
 import os
+import random
 import re
-import requests
 import string
 
-from datetime import datetime, date, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from fuzzywuzzy import fuzz, process
 from loguru import logger
 from slack_bolt.async_app import AsyncApp
@@ -249,6 +248,65 @@ async def clear_messages(ack, body, say, client):
         counter += 1
 
 
+@app.command("/start_food_order")
+async def start_food_order_command(ack, body, client, logger):
+    await ack()
+
+    ICONS = ["bread", "bagel", "pancakes", "pizza", "waffle", "hamburger", "fries", "cooking",
+             "green_salad", "burrito", "poultry_leg", "popcorn", "fried_shrimp", "lobster",
+             "ramen", "doughnut", "cookie", "sushi"]
+
+    user_id = body["user_id"]
+    channel_id = body["channel_id"]
+
+    icon = f":{random.choice(ICONS)}:"
+
+    blocks = [
+        {
+            "type": "section",
+            "block_id": "section_header",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"{icon} It's Tactical Tummy Time. Click *Order* to let " 
+                    f"us know what you'd like."
+                )
+            }
+        },
+        {
+            "type": "actions",
+            "block_id": "action_block",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Order"
+                    },
+                    "value": "button_order",
+                    "action_id": "order_form"
+                }
+            ]
+        }
+    ]
+
+    try:
+        response = await client.chat_postMessage(
+            channel=channel_id,
+            text="Time to order food!",
+            blocks=blocks
+        )
+        # Save the message timestamp and channel id globally for updates
+        global food_message_ts, food_channel_id
+        food_message_ts = response["ts"]
+        food_channel_id = response["channel"]
+
+        logger.info(f"Started food order message at ts={food_message_ts} in channel={food_channel_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to post food order message: {e}")
+
+
 @app.action("order_form")
 async def handle_order_button(ack, body, client):
     await ack()
@@ -305,7 +363,7 @@ async def update_order_message(client):
     if food_message_ts is None or food_channel_id is None:
         return
 
-    # Fetch the existing message to extract emoji
+    # Fetch the current message blocks to extract the emoji
     try:
         history = await client.conversations_history(
             channel=food_channel_id,
@@ -316,19 +374,18 @@ async def update_order_message(client):
         message = history["messages"][0]
         blocks = message.get("blocks", [])
     except Exception as e:
-        logger.error(f"Failed to fetch message history: {e}")
+        logger.error(f"Failed to fetch message history for emoji extraction: {e}")
         blocks = []
 
-    # Extract the emoji from the first block's text
-    emoji = ":pancakes:"  # fallback emoji
+    # Default fallback emoji
+    emoji = ":pancakes:"
     if blocks and blocks[0]["type"] == "section":
         text = blocks[0]["text"].get("text", "")
-        # regex to match an emoji markup at the very start, e.g. ":emoji:"
         match = re.match(r"^(:\S+?:)", text)
         if match:
             emoji = match.group(1)
 
-    # Build the order lines text
+    # Prepare order lines text
     if not orders:
         order_lines = "_No orders yet._"
     else:
@@ -336,18 +393,10 @@ async def update_order_message(client):
             f"• <@{user_id}>: {text}" for user_id, text in orders.items()
         )
 
-    # Delete the old message
-    try:
-        await client.chat_delete(
-            channel=food_channel_id,
-            ts=food_message_ts
-        )
-    except Exception as e:
-        logger.error(f"Failed to delete message: {e}")
-
-    # Post new message using extracted emoji
-    response = await client.chat_postMessage(
+    # Update the original message in place
+    await client.chat_update(
         channel=food_channel_id,
+        ts=food_message_ts,
         text="Updated order list",
         blocks=[
             {
@@ -386,8 +435,6 @@ async def update_order_message(client):
             }
         ]
     )
-
-    food_message_ts = response["ts"]
 
 
 @app.action("leave_order")
