@@ -22,14 +22,14 @@ def main():
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f"{icon} It's Tactical Tummy Time.  Click *Order* to let " 
+                    f":{icon}: It's Tactical Tummy Time.  Click *Order* to let " 
                     f"us know what you'd like."
                 )
             }
         },
         {
             "type": "actions",
-            "blcok_id": "action_block",
+            "block_id": "action_block",
             "elements": [
                 {
                     "type": "button",
