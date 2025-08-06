@@ -315,8 +315,6 @@ async def handle_order_button(ack, body, client):
     food_channel_id = body["channel"]["id"]
     food_message_ts = body["message"]["ts"]
 
-    logger.info(food_message_ts)
-
     trigger_id = body["trigger_id"]
     user_id = body["user"]["id"]
 
@@ -351,8 +349,6 @@ async def handle_modal_submission(ack, body, client):
     order_text = body["view"]["state"]["values"]["order_input"]["order_text"]["value"]
 
     orders[user] = order_text
-
-    logger.info(orders)
 
     await update_order_message(client)
 
@@ -450,13 +446,80 @@ async def handle_leave(ack, body, client):
 async def handle_close(ack, body, client):
     await ack()
     global food_message_ts, food_channel_id
-    orders.clear()
 
     if food_channel_id and food_message_ts:
-        await client.chat_delete(
+        # Prepare the final summary
+        if not orders:
+            summary_text = "_No orders were placed._"
+        else:
+            # Prepare the final summary
+            if not orders:
+                summary_text = "_No orders were placed._"
+            else:
+                summary_lines = []
+                for user_id, order in orders.items():
+                    try:
+                        user_info = await client.users_info(user=user_id)
+                        display_name = user_info["user"]["profile"].get("display_name") or user_info["user"][
+                            "real_name"]
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch display name for {user_id}: {e}")
+                        display_name = f"<@{user_id}>"  # fallback to Slack mention
+
+                    summary_lines.append(f"• {display_name}: {order}")
+
+                summary_text = "*Final Orders:*\n" + "\n".join(summary_lines)
+
+        # Fetch emoji from original message for consistency
+        try:
+            history = await client.conversations_history(
+                channel=food_channel_id,
+                latest=food_message_ts,
+                limit=1,
+                inclusive=True
+            )
+            message = history["messages"][0]
+            blocks = message.get("blocks", [])
+        except Exception as e:
+            logger.error(f"Failed to fetch message for emoji in close: {e}")
+            blocks = []
+
+        emoji = ":pancakes:"
+        if blocks and blocks[0]["type"] == "section":
+            text = blocks[0]["text"].get("text", "")
+            match = re.match(r"^(:\S+?:)", text)
+            if match:
+                emoji = match.group(1)
+
+        # Update original message with summary
+        await client.chat_update(
             channel=food_channel_id,
-            ts=food_message_ts
+            ts=food_message_ts,
+            text="Final breakfast order summary",
+            blocks=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"{emoji} *Breakfast Orders Closed*\n\n{summary_text}"
+                    }
+                }
+            ]
         )
+
+        # Send DM to you (project lead)
+        try:
+            await client.chat_postMessage(
+                channel=creds.pj_user_id,
+                text=f":bell: Breakfast orders have been closed.\n{summary_text}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send DM to project lead: {e}")
+
+    # Clear state
+    orders.clear()
+    food_message_ts = None
+    food_channel_id = None
 
 
 @app.command("/symptoms")
