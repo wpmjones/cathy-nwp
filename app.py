@@ -36,6 +36,8 @@ CHANNEL_TESTING = "C095MDZUCHJ"
 
 # Set global variables
 orders = {}
+food_message_ts = None
+food_channel_id = creds.director_channel
 
 # look for whitespace in string
 # I'm not currently using this function. I honestly can't remember what I was using for, but if I
@@ -253,64 +255,131 @@ async def clear_messages(ack, body, say, client):
         counter += 1
 
 
-@app.command("/breakfast")
-async def handle_breakfast_command(ack, body, client):
+@app.action("order_form")
+async def handle_order_button(ack, body, client, logger):
     await ack()
 
+    global food_channel_id, food_message_ts
+    food_channel_id = body["channel"]["id"]
+    food_message_ts = body["message"]["ts"]
+
     trigger_id = body["trigger_id"]
-    user_id = body["user_id"]
+    user_id = body["user"]["id"]
 
     await client.views_open(
         trigger_id=trigger_id,
         view={
             "type": "modal",
-            "callback_id": "breakfast_modal",
+            "callback_id": "submit_order",
             "title": {"type": "plain_text", "text": "Breakfast Order"},
             "submit": {"type": "plain_text", "text": "Submit"},
-            "close": {"type": "plain_text", "text": "Cancel"},
             "blocks": [
                 {
                     "type": "input",
-                    "block_id": "order_block",
+                    "block_id": "order_input",
                     "label": {"type": "plain_text", "text": "What would you like?"},
                     "element": {
                         "type": "plain_text_input",
-                        "action_id": "order_input"
+                        "action_id": "order_text"
                     }
                 }
             ]
         }
     )
 
-@app.view("breakfast_modal")
-async def handle_modal_submission(ack, body, view, client):
-    await ack()  # immediate response to Slack
 
-    user_id = body["user"]["id"]
-    order_text = view["state"]["values"]["order_block"]["order_input"]["value"]
+@app.view("submit_order")
+async def handle_modal_submission(ack, body, client):
+    await ack()
 
-    orders[user_id] = order_text
+    user = body["user"]["id"]
+    username = f"<@{user}>"
+    order_text = body["view"]["state"]["values"]["order_input"]["order_text"]["value"]
 
-    await client.chat_postEphemeral(
-        channel=body["view"]["private_metadata"] or user_id,
-        user=user_id,
-        text=f"✅ Your order has been received: *{order_text}*"
+    orders[user] = {"name": username, "text": order_text}
+
+    await update_order_message(client)
+
+
+
+async def update_order_message(client):
+    global message_ts, channel_id
+
+    if message_ts is None or channel_id is None:
+        return
+
+    if not orders:
+        order_lines = "_No orders yet._"
+    else:
+        order_lines = "\n".join(
+            f"*1 × {entry['order']}*  \n{entry['name']}" for entry in orders.values()
+        )
+
+    total_orders = len(orders)
+
+    await client.chat_update(
+        channel=channel_id,
+        ts=message_ts,
+        text="Updated order list",
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":pancakes: It's Tactical Tummy Time. Click *Order* to let us know what you'd like.\n\n{order_lines}"
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Order"},
+                        "value": "button_order",
+                        "action_id": "order_form"
+                    }
+                ] + ([
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Leave"},
+                        "style": "danger",
+                        "value": "button_leave",
+                        "action_id": "leave_order"
+                    }
+                ] if orders else []) + [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Close"},
+                        "style": "primary",
+                        "value": "button_close",
+                        "action_id": "close_orders"
+                    }
+                ]
+            }
+        ]
     )
 
-@app.command("/show_orders")
-async def show_orders(ack, body, respond):
-    await ack()
-    if not orders:
-        await respond("No orders yet.")
-    else:
-        summary = "\n".join([f"<@{uid}>: {item}" for uid, item in orders.items()])
-        await respond(f"*Current breakfast orders:*\n{summary}")
 
-@app.command("/clear_orders")
-async def clear_orders(ack, respond):
+@app.action("leave_order")
+async def handle_leave(ack, body, client):
     await ack()
+    user_id = body["user"]["id"]
+    if user_id in orders:
+        del orders[user_id]
+        await update_order_message(client)
+
+
+@app.action("close_order")
+async def handle_close(ack, body, client):
+    await ack()
+    global food_message_ts, food_channel_id
     orders.clear()
-    await respond("🥞 Orders have been cleared.")
+
+    if food_channel_id and food_message_ts:
+        await client.chat_delete(
+            channel=food_channel_id,
+            ts=food_message_ts
+        )
 
 
 @app.command("/symptoms")
