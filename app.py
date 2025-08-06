@@ -248,8 +248,8 @@ async def clear_messages(ack, body, say, client):
         counter += 1
 
 
-@app.command("/start_food_order")
-async def start_food_order_command(ack, body, client, logger):
+@app.command("/breakfast")
+async def start_food_order_command(ack, body, client):
     await ack()
 
     ICONS = ["bread", "bagel", "pancakes", "pizza", "waffle", "hamburger", "fries", "cooking",
