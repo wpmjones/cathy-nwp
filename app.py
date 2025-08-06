@@ -296,7 +296,7 @@ async def handle_modal_submission(ack, body, client):
     username = f"<@{user}>"
     order_text = body["view"]["state"]["values"]["order_input"]["order_text"]["value"]
 
-    orders[user] = {"name": username, "text": order_text}
+    orders[user] = order_text
 
     logger.info(orders)
 
@@ -315,7 +315,7 @@ async def update_order_message(client):
     else:
         logger.info(orders)
         order_lines = "\n".join(
-            f"*{entry['order']}*  \n{entry['name']}" for entry in orders.values()
+            f"• <@{user_id}>: {text}" for user_id, text in orders.items()
         )
 
     total_orders = len(orders)
@@ -372,7 +372,7 @@ async def handle_leave(ack, body, client):
         await update_order_message(client)
 
 
-@app.action("close_order")
+@app.action("close_orders")
 async def handle_close(ack, body, client):
     await ack()
     global food_message_ts, food_channel_id
