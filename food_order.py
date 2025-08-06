@@ -22,7 +22,7 @@ def main():
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f":{icon}: It's Tactical Tummy Time.  Click *Order* to let " 
+                    f"{icon} It's Tactical Tummy Time.  Click *Order* to let " 
                     f"us know what you'd like."
                 )
             }
@@ -43,8 +43,6 @@ def main():
             ]
         }
     ]
-
-    logger.info(blocks)
 
     payload = {
         "text": "Time to order food!",
