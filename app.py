@@ -305,9 +305,9 @@ async def handle_modal_submission(ack, body, client):
 
 
 async def update_order_message(client):
-    global message_ts, channel_id
+    global food_message_ts, food_channel_id
 
-    if message_ts is None or channel_id is None:
+    if food_message_ts is None or food_channel_id is None:
         return
 
     if not orders:
@@ -320,8 +320,8 @@ async def update_order_message(client):
     total_orders = len(orders)
 
     await client.chat_update(
-        channel=channel_id,
-        ts=message_ts,
+        channel=food_channel_id,
+        ts=food_message_ts,
         text="Updated order list",
         blocks=[
             {
