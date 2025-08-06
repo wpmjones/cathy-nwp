@@ -11,7 +11,7 @@ ICONS = [bread, bagel, pancakes, pizza, waffle, hamburger, fries, cooking,
 
 def main():
     """Initializes food order for weekly tactical meeting"""
-    webhook_url = creds.webhook_directors
+    webhook_url = creds.webhook_test
 
     icon = f":{random.choice(ICONS)}:"
 
