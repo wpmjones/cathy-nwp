@@ -58,6 +58,11 @@ def get_next_thursday_after(date_str):
         days_ahead = 7
     return (date + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
 
+@app.middleware  # logs everything Slack sends
+async def log_all_requests(context, next):
+    logger.info(f"Slack request: {context.body}")
+    return await next()
+
 
 # It's poor design to hard code your help command since it won't update itself when you add/change commands,
 # but here it is.  I told you I wasn't a pro!  haha
@@ -150,6 +155,7 @@ async def handle_newuser_command(ack, body, client):
 
 @app.view("newuser_modal")
 async def handle_modal_submission(ack, body, view):
+    logger.info("HELLO FROM THE VIEW HANDLER")
     state_values = view["state"]["values"]
     logger.info(state_values)
 
@@ -215,8 +221,8 @@ async def loomis(ack, body, say):
     await ack()
     if body['channel_id'] != creds.all_channel:
         return await say(f"Please use this command in <#{creds.all_channel}> only.")
-    await say("There is a manual deposit prepped and ready to go.  If you see Loomis, please make sure they get"
-              " the deposit.  Thank you.")
+    return await say("There is a manual deposit prepped and ready to go.  If you see Loomis, please "
+              "make sure they get the deposit.  Thank you.")
 
 
 # async def pull_cater(user_first):
