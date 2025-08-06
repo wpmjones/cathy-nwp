@@ -34,6 +34,9 @@ client = WebClient(token=creds.bot_token)
 # Constants
 CHANNEL_TESTING = "C095MDZUCHJ"
 
+# Set global variables
+orders = {}
+
 # look for whitespace in string
 # I'm not currently using this function. I honestly can't remember what I was using for, but if I
 # remove it, I'll immediately remember why and need it again!
@@ -155,9 +158,7 @@ async def handle_newuser_command(ack, body, client):
 
 @app.view("newuser_modal")
 async def handle_modal_submission(ack, body, view):
-    logger.info("HELLO FROM THE VIEW HANDLER")
     state_values = view["state"]["values"]
-    logger.info(state_values)
 
     # Extract values
     first_name = state_values["first_name"]["input"]["value"]
@@ -225,137 +226,6 @@ async def loomis(ack, body, say):
               "make sure they get the deposit.  Thank you.")
 
 
-# async def pull_cater(user_first):
-#     # Look for and add catering deliveries if they exist
-#     spreadsheet = gc.open_by_key(creds.cater_id)
-#     cater_sheet = spreadsheet.worksheet("Sheet1")
-#     now_str = datetime.today().strftime("%m/%d/%Y")
-#     list_of_orders = cater_sheet.findall(now_str, in_column=1)
-#     my_orders = []
-#     temp_blocks = []
-#     if list_of_orders:
-#         list_of_rows = [x.row for x in list_of_orders]
-#         for row in list_of_rows:
-#             row_values = cater_sheet.row_values(row)
-#             if row_values[2] == user_first:
-#                 my_orders.append(
-#                     {
-#                         "type": "section",
-#                         "text": {
-#                             "type": "mrkdwn",
-#                             "text": f"{row_values[1]} ⏱️ {row_values[3]} 📞 {row_values[5]}"
-#                         }
-#                     }
-#                 )
-#     if my_orders:
-#         temp_blocks.append(
-#             {
-#                 "type": "section",
-#                 "text": {
-#                     "type": "mrkdwn",
-#                     "text": "*Your Catering Orders for today*"
-#                 }
-#             }
-#         )
-#         for order in my_orders:
-#             temp_blocks.append(order)
-#         temp_blocks.append({"type": "divider"})
-#     return temp_blocks
-
-
-# @app.event("url_verification")
-# async def verify(event):
-#     """Used only to verify new IP address at
-#     https://api.slack.com/apps/A01NUGS5YNB/event-subscriptions?"""
-#     if "challenge" in event:
-#         logger.info("New IP address for event subscription.")
-#         return event['challenge']
-
-
-# @app.event("app_home_opened")
-# async def initiate_home_tab(client, event):
-#     """Provide user specific content to the Cathy Home tab"""
-#     # Establish link to Google Sheets
-#     leader_sheet = staff_spreadsheet.worksheet("Leaders")
-#     user_cell = leader_sheet.find(event['user'])
-#     user_first = leader_sheet.cell(user_cell.row, 1).value
-#     user_loc = leader_sheet.cell(user_cell.row, 5).value
-#     # build blocks
-#     blocks = [
-#         {
-#             "type": "section",
-#             "text": {
-#                 "type": "mrkdwn",
-#                 "text": (f"Hey there {user_first} 👋 I'm Cathy - you're gateway to a number of cool features inside of "
-#                          f"Slack. Use /help to see all the different commands you can use in Slack.")
-#             }
-#         },
-#         {
-#             "type": "divider"
-#         }
-#     ]
-#     # Add catering deliveries for this user, if they exist
-#     cater_blocks = await pull_cater(user_first)
-#     if cater_blocks:
-#         blocks = blocks + cater_blocks
-#     # Add Shift Notes
-#     blocks.append(
-#         {
-#             "type": "section",
-#             "text": {
-#                 "type": "mrkdwn",
-#                 "text": "✍️ *Weekly Shift Notes*"
-#             },
-#             "accessory": {
-#                 "type": "button",
-#                 "text": {
-#                     "type": "plain_text",
-#                     "emoji": True,
-#                     "text": "Swap Notes"
-#                 },
-#                 "action_id": "swap_notes"
-#             }
-#         }
-#     )
-#     notes_blocks = await pull_notes(user_loc)
-#     blocks = blocks + notes_blocks
-#     # Publish view to home tab
-#     await client.views_publish(
-#         user_id=event['user'],
-#         view={
-#             "type": "home",
-#             "callback_id": "home_view",
-#             "blocks": blocks
-#         }
-#     )
-
-
-# @app.block_action("swap_notes")
-# async def home_swap_notes(ack, body, client):
-#     """"Update the Home tab following a button click by the user"""
-#     await ack()
-#     blocks = body['view']['blocks']
-#     # update blocks
-#     user_loc = body['view']['blocks'][-1]['elements'][0]['elements'][0]['text'][:3]
-#     logger.info(user_loc)
-#     if user_loc == "BOH":
-#         # Swap to FOH
-#         notes_blocks = await pull_notes("FOH")
-#     else:
-#         # Swap to BOH
-#         notes_blocks = await pull_notes("BOH")
-#     blocks = blocks[:-5] + notes_blocks
-#     # Publish view to home tab
-#     await client.views_publish(
-#         user_id=body['user']['id'],
-#         view={
-#             "type": "home",
-#             "callback_id": "home_view",
-#             "blocks": blocks
-#         }
-#     )
-
-
 # Remove all Slack messages from the channel you are in. I only use this in my test channel.
 # This is a dangerous command and the "if body['user_id'] not in" line below limits the use of this
 # command to top leadership only.
@@ -383,47 +253,64 @@ async def clear_messages(ack, body, say, client):
         counter += 1
 
 
-# @app.block_action("order_form")
-# async def order_view(ack, body, client):
-#     """Open the order form for data entry"""
-#     await ack()
-#     logger.info("Start order form view process...")
-#     logger.info(body)
-#     blocks = [
-#         {
-#             "type": "input",
-#             "block_id": "input_food_item",
-#             "label": {"type": "plain_text", "text": "What would you like?"},
-#             "element": {
-#                 "type": "plain_text_input",
-#                 "action_id": "food_item",
-#                 "placeholder": {
-#                     "type": "plain_text",
-#                     "text": "Example: Egg White Grill + Hashbrowns"
-#                 }
-#             }
-#         },
-# 		{
-# 			"type": "section",
-# 			"text": {
-# 				"type": "mrkdwn",
-# 				"text": ("If you want multiple items, put them on the same "
-#                         "line.\nFor example *Spicy Biscuit + Fruit Cup*.")
-# 			}
-# 		}
-#     ]
-#     logger.info("Blocks ready. Open view.")
-#     try:
-#         await client.views_open(
-#             trigger_id=body['trigger_id'],
-#             view={
-#                 "type": "modal",
-#                 "callback_id": "order_view",
-#                 "title": {"type": "plain_text", "text": "Order Form"},
-#                 "submit": {"type": "plain_text", "text": "Order"},
-#                 "blocks": blocks
-#             }
-#         )
+@app.command("/breakfast")
+async def handle_breakfast_command(ack, body, client):
+    await ack()
+
+    trigger_id = body["trigger_id"]
+    user_id = body["user_id"]
+
+    await client.views_open(
+        trigger_id=trigger_id,
+        view={
+            "type": "modal",
+            "callback_id": "breakfast_modal",
+            "title": {"type": "plain_text", "text": "Breakfast Order"},
+            "submit": {"type": "plain_text", "text": "Submit"},
+            "close": {"type": "plain_text", "text": "Cancel"},
+            "blocks": [
+                {
+                    "type": "input",
+                    "block_id": "order_block",
+                    "label": {"type": "plain_text", "text": "What would you like?"},
+                    "element": {
+                        "type": "plain_text_input",
+                        "action_id": "order_input"
+                    }
+                }
+            ]
+        }
+    )
+
+@app.view("breakfast_modal")
+async def handle_modal_submission(ack, body, view, client):
+    await ack()  # immediate response to Slack
+
+    user_id = body["user"]["id"]
+    order_text = view["state"]["values"]["order_block"]["order_input"]["value"]
+
+    orders[user_id] = order_text
+
+    await client.chat_postEphemeral(
+        channel=body["view"]["private_metadata"] or user_id,
+        user=user_id,
+        text=f"✅ Your order has been received: *{order_text}*"
+    )
+
+@app.command("/show_orders")
+async def show_orders(ack, body, respond):
+    await ack()
+    if not orders:
+        await respond("No orders yet.")
+    else:
+        summary = "\n".join([f"<@{uid}>: {item}" for uid, item in orders.items()])
+        await respond(f"*Current breakfast orders:*\n{summary}")
+
+@app.command("/clear_orders")
+async def clear_orders(ack, respond):
+    await ack()
+    orders.clear()
+    await respond("🥞 Orders have been cleared.")
 
 
 @app.command("/symptoms")
