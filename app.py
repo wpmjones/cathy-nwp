@@ -313,8 +313,9 @@ async def update_order_message(client):
     if not orders:
         order_lines = "_No orders yet._"
     else:
+        logger.info(orders)
         order_lines = "\n".join(
-            f"*1 × {entry['order']}*  \n{entry['name']}" for entry in orders.values()
+            f"*{entry['order']}*  \n{entry['name']}" for entry in orders.values()
         )
 
     total_orders = len(orders)
