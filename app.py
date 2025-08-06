@@ -15,10 +15,9 @@ import re
 import requests
 import string
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from fuzzywuzzy import fuzz, process
 from loguru import logger
-from pytz import timezone
 from slack_bolt.async_app import AsyncApp
 from slack_sdk.web import WebClient
 from slack_bolt.error import BoltError
