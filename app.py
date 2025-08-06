@@ -147,7 +147,67 @@ async def handle_newuser_command(ack, body, client):
     }
     logger.info(modal_view)
 
-    await client.views_open(trigger_id=body["trigger_id"], view=modal_view)            
+    await client.views_open(trigger_id=body["trigger_id"], view=modal_view)
+
+
+@app.view("newuser_modal")
+async def handle_modal_submission(ack, body, view, logger):
+    state_values = view["state"]["values"]
+
+    # Extract values
+    first_name = state_values["first_name"]["input"]["value"]
+    last_name = state_values["last_name"]["input"]["value"]
+    email = state_values["email"]["input"]["value"]
+    phone_raw = state_values["phone"]["input"]["value"]
+    available_date = state_values["available_date"]["input"]["selected_date"]
+    orientation_date = state_values["orientation_date"]["input"]["selected_date"]
+
+    # Validation
+    errors = {}
+
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        errors["email"] = "Please enter a valid email address."
+
+    # Strip all non-digit characters
+    phone_digits = re.sub(r"\D", "", phone_raw)
+
+    if len(phone_digits) != 10:
+        errors["phone"] = "Phone number must have exactly 10 digits."
+
+    if errors:
+        await ack(response_action="errors", errors=errors)
+        return
+
+    # Format phone number as XXX-XXX-XXXX
+    phone_formatted = f"{phone_digits[:3]}-{phone_digits[3:6]}-{phone_digits[6:]}"
+
+    # Acknowledge the modal submission
+    await ack()
+
+    # Build payload
+    timestamp = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "values": [
+            timestamp,
+            first_name,
+            last_name,
+            phone_formatted,
+            available_date,
+            orientation_date,
+            email
+        ]
+    }
+
+    # Send to GAS
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(creds.gas, json=payload) as resp:
+                if resp.status != 200:
+                    logger.error(f"GAS returned status {resp.status}")
+                else:
+                    logger.info("Payload sent successfully to GAS")
+    except Exception as e:
+        logger.exception(f"Error sending to GAS: {e}")
 
 
 @app.command("/loomis")
