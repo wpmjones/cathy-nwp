@@ -58,10 +58,11 @@ def get_next_thursday_after(date_str):
         days_ahead = 7
     return (date + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
 
-@app.middleware  # logs everything Slack sends
-async def log_all_requests(context, next):
-    logger.info(f"Slack request: {context.body}")
-    return await next()
+@app.use
+async def log_middleware(req, resp, next):
+    logger.info("Middleware triggered")
+    logger.info("Request body: %s", req.body)  # cleaner than f-strings in logs
+    await next()
 
 
 # It's poor design to hard code your help command since it won't update itself when you add/change commands,
