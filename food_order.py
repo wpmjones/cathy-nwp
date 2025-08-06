@@ -44,6 +44,8 @@ def main():
         }
     ]
 
+    logger.info(blocks)
+
     payload = {
         "text": "Time to order food!",
         "blocks": blocks
