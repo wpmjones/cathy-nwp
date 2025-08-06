@@ -149,7 +149,7 @@ async def handle_newuser_command(ack, body, client):
 
 
 @app.view("newuser_modal")
-async def handle_modal_submission(ack, body, view, logger):
+async def handle_modal_submission(ack, body, view):
     state_values = view["state"]["values"]
     logger.info(state_values)
 
