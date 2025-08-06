@@ -299,6 +299,7 @@ async def handle_modal_submission(ack, body, client):
     orders[user] = order_text
 
     logger.info(orders)
+    logger.info(body)
 
     await update_order_message(client)
 
