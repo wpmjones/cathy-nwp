@@ -78,7 +78,6 @@ async def cathy_help(ack, say):
 
 @app.command("/newuser")
 async def handle_newuser_command(ack, body, client):
-    logger.info("Starting New User function.")
     await ack()
 
     available_date = get_next_monday()
@@ -145,7 +144,6 @@ async def handle_newuser_command(ack, body, client):
             }
         ]
     }
-    logger.info(modal_view)
 
     await client.views_open(trigger_id=body["trigger_id"], view=modal_view)
 
@@ -153,6 +151,7 @@ async def handle_newuser_command(ack, body, client):
 @app.view("newuser_modal")
 async def handle_modal_submission(ack, body, view, logger):
     state_values = view["state"]["values"]
+    logger.info(state_values)
 
     # Extract values
     first_name = state_values["first_name"]["input"]["value"]
