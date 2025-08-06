@@ -256,12 +256,14 @@ async def clear_messages(ack, body, say, client):
 
 
 @app.action("order_form")
-async def handle_order_button(ack, body, client, logger):
+async def handle_order_button(ack, body, client):
     await ack()
 
     global food_channel_id, food_message_ts
     food_channel_id = body["channel"]["id"]
     food_message_ts = body["message"]["ts"]
+
+    logger.info(food_message_ts)
 
     trigger_id = body["trigger_id"]
     user_id = body["user"]["id"]
@@ -299,7 +301,7 @@ async def handle_modal_submission(ack, body, client):
     orders[user] = order_text
 
     logger.info(orders)
-    logger.info(body)
+    logger.info(client)
 
     await update_order_message(client)
 
