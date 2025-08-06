@@ -62,12 +62,6 @@ def get_next_thursday_after(date_str):
         days_ahead = 7
     return (date + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
 
-@app.use
-async def log_middleware(req, resp, next):
-    logger.info("Middleware triggered")
-    logger.info("Request body: %s", req.body)  # cleaner than f-strings in logs
-    await next()
-
 
 # It's poor design to hard code your help command since it won't update itself when you add/change commands,
 # but here it is.  I told you I wasn't a pro!  haha
@@ -301,10 +295,8 @@ async def handle_modal_submission(ack, body, client):
     orders[user] = order_text
 
     logger.info(orders)
-    logger.info(client)
 
     await update_order_message(client)
-
 
 
 async def update_order_message(client):
@@ -313,26 +305,56 @@ async def update_order_message(client):
     if food_message_ts is None or food_channel_id is None:
         return
 
+    # Fetch the existing message to extract emoji
+    try:
+        history = await client.conversations_history(
+            channel=food_channel_id,
+            latest=food_message_ts,
+            limit=1,
+            inclusive=True
+        )
+        message = history["messages"][0]
+        blocks = message.get("blocks", [])
+    except Exception as e:
+        logger.error(f"Failed to fetch message history: {e}")
+        blocks = []
+
+    # Extract the emoji from the first block's text
+    emoji = ":pancakes:"  # fallback emoji
+    if blocks and blocks[0]["type"] == "section":
+        text = blocks[0]["text"].get("text", "")
+        # regex to match an emoji markup at the very start, e.g. ":emoji:"
+        match = re.match(r"^(:\S+?:)", text)
+        if match:
+            emoji = match.group(1)
+
+    # Build the order lines text
     if not orders:
         order_lines = "_No orders yet._"
     else:
-        logger.info(orders)
         order_lines = "\n".join(
             f"• <@{user_id}>: {text}" for user_id, text in orders.items()
         )
 
-    total_orders = len(orders)
+    # Delete the old message
+    try:
+        await client.chat_delete(
+            channel=food_channel_id,
+            ts=food_message_ts
+        )
+    except Exception as e:
+        logger.error(f"Failed to delete message: {e}")
 
-    await client.chat_update(
+    # Post new message using extracted emoji
+    response = await client.chat_postMessage(
         channel=food_channel_id,
-        ts=food_message_ts,
         text="Updated order list",
         blocks=[
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f":pancakes: It's Tactical Tummy Time. Click *Order* to let us know what you'd like.\n\n{order_lines}"
+                    "text": f"{emoji} It's Tactical Tummy Time. Click *Order* to let us know what you'd like.\n\n{order_lines}"
                 }
             },
             {
@@ -364,6 +386,8 @@ async def update_order_message(client):
             }
         ]
     )
+
+    food_message_ts = response["ts"]
 
 
 @app.action("leave_order")
